@@ -1,0 +1,21 @@
+{
+  "name": "serverless-easy-usage-plan-key",
+  "version": "0.0.15",
+  "description": "Helps generate UsagePlanKey using ApiKeyName.",
+  "main": "src/index.js",
+  "dependencies": {
+    "chalk": "^2.4.2",
+    "aws-sdk": "^2.564.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/AsterKim/serverless-easy-usage-plan-key.git"
+  },
+  "author": "Aster",
+  "license": "ISC",
+  "homepage": "https://bitbucket.org/AsterKim/serverless-easy-usage-plan-key#readme"
+}
