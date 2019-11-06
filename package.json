@@ -16,6 +16,6 @@
     "url": "git+ssh://git@github.com/spooncast/serverless-easy-usage-plan-key.git"
   },
   "author": "Aster",
-  "license": "ISC",
+  "license": "MIT",
   "homepage": "https://github.com/spooncast/serverless-easy-usage-plan-key/blob/master/README.md"
 }
