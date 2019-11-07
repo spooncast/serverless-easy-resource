@@ -26,5 +26,5 @@ UsagePlanKey:
         KeyType: API_KEY
 ```
 If you have a resource of type AWS::ApiGateway::UsagePlanKey in Resources in the Serverless template,
-look for {resourceName}.Properties.keyName to look up the API key information.
-If API key exists, get the API key id and put the value in {resourceName}.Properties.keyId.
+look for {resourceName}.Properties.KeyName to look up the API key information.
+If API key exists, get the API key id and put the value in {resourceName}.Properties.KeyId.

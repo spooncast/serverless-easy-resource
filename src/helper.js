@@ -31,7 +31,7 @@ const getApiKey = async (key, apigateway, cli) => {
     if (error.code === 'NotFoundException') {
       return undefined
     }
-    cli.consoleLog(`AddApiKey: ${chalk.red(`Failed to check if key already exists. Error ${error.message || error}`)}`)
+    cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`Failed to check if key already exists. Error ${error.message || error}`)}`)
     throw error
   }
 }
@@ -49,10 +49,9 @@ const getApiKeyId = async (serverless) => {
   }).map(async key => {
     const usagePlanKey = template["Resources"][key]
     const apiKeyName = usagePlanKey.Properties ? usagePlanKey.Properties.KeyName : null
-    const apiKeyId = usagePlanKey.Properties ? usagePlanKey.Properties.KeyId : null
 
     if (apiKeyName) {
-      serverless.cli.consoleLog(`getApiKeyId: find API key id using the API key name`)
+      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`find API key id using the API key name...`)}`)
       const provider = serverless.getProvider('aws')
       const awsCredentials = provider.getCredentials()
       const region = provider.getRegion()
@@ -61,15 +60,13 @@ const getApiKeyId = async (serverless) => {
 
       if (apiKey) {
         serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyId = apiKey.id
-        serverless.cli.consoleLog(`getApiKeyId: API key id found successfully. apiKeyId(${apiKey.id})`)
+        serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`)}`)
       } else {
-        serverless.cli.consoleLog(`getApiKeyId: API key not found.`)
+        serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key not found.`)}`)
       }
       delete serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyName
-      serverless.cli.log(`getApiKeyId ${JSON.stringify(serverless.service.provider.compiledCloudFormationTemplate["Resources"][key], null, 2)}`)
-      
     } else {
-      serverless.cli.log(`no API key name`)
+      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key name not found.`)}`)
     }
   }))
 }
