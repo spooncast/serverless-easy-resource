@@ -1,5 +1,6 @@
 const AWS = require('aws-sdk')
 const chalk = require('chalk')
+const R = require('ramda')
 
 /**
  * Get api key by name.
@@ -8,29 +9,21 @@ const chalk = require('chalk')
  * @param {Object} cli Serverless CLI object
  * @returns {Object} Api key info.
  */
-const getApiKey = async (key, apigateway, cli) => {
-  let position = null
-  let keys = []
+const getApiKey = async (name, apigateway, cli) => {
   try {
-    while (true) {
-      let resp = null
-      if (!position) {
-        resp = await apigateway.getApiKeys().promise()
-      } else {
-        resp = await apigateway.getApiKeys({ position }).promise()
-      }
-      keys = keys.concat(resp.items)
-      if (resp.position) {
-        position = resp.position
-      } else {
-        break
-      }
+    const getAllApiKeys = async (position = null, keys = []) => {
+      const options = position ? { position } : null
+      const res = await apigateway.getApiKeys(options).promise()
+      keys = keys.concat(res.items)
+      return res.position ? getAllApiKeys(res.position, keys) : Promise.resolve(keys)
     }
-    return keys.find(k => k.name === key)
+    const findApiKey = (_name) => (keys) => keys.find(k => k.name === _name)
+    const getApiKey = (name) => R.pipeP(getAllApiKeys, findApiKey(name))()
+
+    return getApiKey(name)
+
   } catch (error) {
-    if (error.code === 'NotFoundException') {
-      return undefined
-    }
+    if (error.code === 'NotFoundException') return undefined
     cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`Failed to check if key already exists. Error ${error.message || error}`)}`)
     throw error
   }
@@ -41,7 +34,7 @@ const getApiKey = async (key, apigateway, cli) => {
  * @param {Object} serverless Serverless object
  */
 const getApiKeyId = async (serverless) => {
-  
+
   const template = serverless.service.provider.compiledCloudFormationTemplate
 
   await Promise.all(Object.keys(template["Resources"]).filter(key => {
@@ -50,24 +43,22 @@ const getApiKeyId = async (serverless) => {
     const usagePlanKey = template["Resources"][key]
     const apiKeyName = usagePlanKey.Properties ? usagePlanKey.Properties.KeyName : null
 
-    if (apiKeyName) {
-      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`find API key id using the API key name...`)}`)
-      const provider = serverless.getProvider('aws')
-      const awsCredentials = provider.getCredentials()
-      const region = provider.getRegion()
-      const ag = new AWS.APIGateway({ credentials: awsCredentials.credentials, region })
-      const apiKey = await module.exports.getApiKey(apiKeyName, ag, serverless.cli)
+    if (!apiKeyName) serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key name not found.`)}`)
+    
+    serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`find API key id using the API key name...`)}`)
+    const provider = serverless.getProvider('aws')
+    const awsCredentials = provider.getCredentials()
+    const region = provider.getRegion()
+    const apiGateway = new AWS.APIGateway({ credentials: awsCredentials.credentials, region })
+    const apiKey = await getApiKey(apiKeyName, apiGateway, serverless.cli)
 
-      if (apiKey) {
-        serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyId = apiKey.id
-        serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`)}`)
-      } else {
-        serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key not found.`)}`)
-      }
-      delete serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyName
+    if (apiKey) {
+      serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyId = apiKey.id
+      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`)}`)
     } else {
-      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key name not found.`)}`)
+      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key not found.`)}`)
     }
+    delete serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyName
   }))
 }
 
