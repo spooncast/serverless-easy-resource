@@ -18,7 +18,7 @@ const getApiKey = async (name, apigateway, cli) => {
       return res.position ? getAllApiKeys(res.position, keys) : Promise.resolve(keys)
     }
     const findApiKey = (_name) => (keys) => keys.find(k => k.name === _name)
-    const getApiKey = (name) => R.pipeP(getAllApiKeys, findApiKey(name))()
+    const getApiKey = (_name) => R.pipeP(getAllApiKeys, findApiKey(_name))()
 
     return getApiKey(name)
 
@@ -53,12 +53,12 @@ const getApiKeyId = async (serverless) => {
     const apiKey = await getApiKey(apiKeyName, apiGateway, serverless.cli)
 
     if (apiKey) {
-      serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyId = apiKey.id
+      template["Resources"][key].Properties.KeyId = apiKey.id
       serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`)}`)
     } else {
       serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key not found.`)}`)
     }
-    delete serverless.service.provider.compiledCloudFormationTemplate["Resources"][key].Properties.KeyName
+    delete template["Resources"][key].Properties.KeyName
   }))
 }
 
