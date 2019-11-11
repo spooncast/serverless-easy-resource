@@ -1,22 +1,31 @@
 {
   "name": "serverless-easy-usage-plan-key",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "Helps generate UsagePlanKey using ApiKeyName.",
   "main": "src/index.js",
-  "dependencies": {
-    "aws-sdk": "^2.564.0",
-    "chalk": "^2.4.2",
-    "ramda": "^0.26.1"
-  },
-  "devDependencies": {},
+  "keywords": [
+    "serverless",
+    "serverless plugins",
+    "api gateway",
+    "lambda",
+    "aws lambda",
+    "usage plan",
+    "usage plan key"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/spooncast/serverless-easy-usage-plan-key.git"
+    "url": "https://github.com/spooncast/serverless-easy-usage-plan-key.git"
   },
   "author": "Aster",
   "license": "MIT",
-  "homepage": "https://github.com/spooncast/serverless-easy-usage-plan-key/blob/master/README.md"
+  "homepage": "https://github.com/spooncast/serverless-easy-usage-plan-key/blob/master/README.md",
+  "devDependencies": {},
+  "dependencies": {
+    "aws-sdk": "^2.564.0",
+    "chalk": "^2.4.2",
+    "ramda": "^0.26.1"
+  }
 }
