@@ -1,6 +1,7 @@
 const AWS = require('aws-sdk')
 const chalk = require('chalk')
 const R = require('ramda')
+const BbPromise = require('bluebird')
 
 /**
  * Get api key by name.
@@ -35,17 +36,15 @@ const getApiKey = async (name, apigateway, cli) => {
  */
 const getApiKeyId = async (serverless) => {
 
-  const template = serverless.service.provider.compiledCloudFormationTemplate
-
-  await Promise.all(Object.keys(template["Resources"]).filter(key => {
-    return !!~template["Resources"][key].Type.search('AWS::ApiGateway::UsagePlanKey')
-  }).map(async key => {
-    const usagePlanKey = template["Resources"][key]
+  const resources = serverless.service.provider.compiledCloudFormationTemplate["Resources"]
+  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
+  const isUsagePlanKey = (resource) => !!~resource.Type.search('AWS::ApiGateway::UsagePlanKey')
+  const findApiKey = async (usagePlanKey) => {
     const apiKeyName = usagePlanKey.Properties ? usagePlanKey.Properties.KeyName : null
 
-    if (!apiKeyName) serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key name not found.`)}`)
+    if (!apiKeyName) cliLog(chalk.red(`API key name not found.`))
     
-    serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`find API key id using the API key name...`)}`)
+    cliLog(chalk.yellow(`find API key id using the API key name...`))
     const provider = serverless.getProvider('aws')
     const awsCredentials = provider.getCredentials()
     const region = provider.getRegion()
@@ -53,16 +52,52 @@ const getApiKeyId = async (serverless) => {
     const apiKey = await getApiKey(apiKeyName, apiGateway, serverless.cli)
 
     if (apiKey) {
-      template["Resources"][key].Properties.KeyId = apiKey.id
-      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`)}`)
+      usagePlanKey.Properties.KeyId = apiKey.id
+      const provider = serverless.service.provider
+      if (!provider.apiKeys) provider.apiKeys = []
+      provider.apiKeys.push(apiKey.name)
+      cliLog(chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`))
     } else {
-      serverless.cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`API key not found.`)}`)
+      cliLog(chalk.red(`API key not found.`))
     }
-    delete template["Resources"][key].Properties.KeyName
-  }))
+    delete usagePlanKey.Properties.KeyName
+
+    return usagePlanKey
+  }
+  
+  const run = R.pipe(R.filter(isUsagePlanKey), R.map(findApiKey), BbPromise.props)
+  await run(resources)
+}
+
+const setParameterStoreApiKey = async (serverless) => {
+  if (!serverless.service.custom.apiKeyParameter) return
+  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
+  const provider = serverless.getProvider('aws')
+  const awsCredentials = provider.getCredentials()
+  const region = provider.getRegion()
+  const ssm = new AWS.SSM({ credentials: awsCredentials.credentials, region })
+  const parameters = serverless.service.custom.apiKeyParameter
+
+  const putParameter = async (parameter) => {
+    const awsInfo = serverless.pluginManager.plugins.find(p => p.constructor.name === 'AwsInfo')
+    const findKey = (name) => awsInfo.gatheredData.info.apiKeys.find(item => item.name === name)
+    const apiKey = findKey(parameter.apiName)
+    const params = {
+      Name: parameter.keyName,
+      Type: "String",
+      Value: apiKey.value,
+      Overwrite: true,
+      Tier: 'Standard'
+    }
+    const result = await ssm.putParameter(params).promise()
+    if (result) cliLog(`API key put parameter: ${parameter.keyName}`)
+    return result
+  }
+  const run = R.pipe(R.map(putParameter), BbPromise.props)
+  await run(parameters)
 }
 
 module.exports = {
-  getApiKey,
-  getApiKeyId
+  getApiKeyId,
+  setParameterStoreApiKey
 }
