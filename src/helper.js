@@ -42,7 +42,7 @@ const getApiKeyId = async (serverless) => {
   const findApiKey = async (usagePlanKey) => {
     const apiKeyName = usagePlanKey.Properties ? usagePlanKey.Properties.KeyName : null
 
-    if (!apiKeyName) cliLog(chalk.red(`API key name not found.`))
+    if (!apiKeyName) return
     
     cliLog(chalk.yellow(`find API key id using the API key name...`))
     const provider = serverless.getProvider('aws')
@@ -70,31 +70,46 @@ const getApiKeyId = async (serverless) => {
 }
 
 const setParameterStoreApiKey = async (serverless) => {
+
   if (!serverless.service.custom.apiKeyParameter) return
   const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
-  const provider = serverless.getProvider('aws')
-  const awsCredentials = provider.getCredentials()
-  const region = provider.getRegion()
-  const ssm = new AWS.SSM({ credentials: awsCredentials.credentials, region })
-  const parameters = serverless.service.custom.apiKeyParameter
 
-  const putParameter = async (parameter) => {
-    const awsInfo = serverless.pluginManager.plugins.find(p => p.constructor.name === 'AwsInfo')
-    const findKey = (name) => awsInfo.gatheredData.info.apiKeys.find(item => item.name === name)
-    const apiKey = findKey(parameter.apiName)
-    const params = {
-      Name: parameter.keyName,
-      Type: "String",
-      Value: apiKey.value,
-      Overwrite: true,
-      Tier: 'Standard'
+  try {
+    const provider = serverless.getProvider('aws')
+    const awsCredentials = provider.getCredentials()
+    const region = provider.getRegion()
+    const ssm = new AWS.SSM({ credentials: awsCredentials.credentials, region })
+    const parameters = serverless.service.custom.apiKeyParameter
+
+    const putParameter = async (parameter) => {
+      const awsInfo = serverless.pluginManager.plugins.find(p => p.constructor.name === 'AwsInfo')
+      const apiGateway = new AWS.APIGateway({ credentials: awsCredentials.credentials, region })
+      const apiKey = await getApiKey(parameter.apiName, apiGateway, serverless.cli)
+
+      const apiKeyWithValue = await provider.request(
+          'APIGateway',
+          'getApiKey',
+          { apiKey: apiKey.id, includeValue: true })
+
+      const params = {
+        Name: parameter.keyName,
+        Type: "String",
+        Value: apiKeyWithValue.value,
+        Overwrite: true,
+        Tier: 'Standard'
+      }
+
+      const result = await ssm.putParameter(params).promise()
+      if (result) cliLog(`API key put parameter: ${parameter.keyName}`)
+      
+      return result
     }
-    const result = await ssm.putParameter(params).promise()
-    if (result) cliLog(`API key put parameter: ${parameter.keyName}`)
-    return result
+    const run = R.pipe(R.map(putParameter), BbPromise.props)
+    await run(parameters)
+  } catch (e) {
+    cliLog(chalk.red(e))
   }
-  const run = R.pipe(R.map(putParameter), BbPromise.props)
-  await run(parameters)
+    
 }
 
 module.exports = {

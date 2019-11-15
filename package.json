@@ -1,6 +1,6 @@
 {
   "name": "serverless-easy-usage-plan-key",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "Helps generate UsagePlanKey using ApiKeyName.",
   "main": "src/index.js",
   "keywords": [
