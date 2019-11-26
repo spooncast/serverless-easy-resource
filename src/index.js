@@ -6,6 +6,7 @@ class GetApiKeyId {
     this.hooks = {
       'after:aws:package:finalize:mergeCustomProviderResources': async () => {
         await helper.getApiKeyId(serverless)
+        helper.setApiGatewayDeploymentTimestamp(serverless)
       },
       'before:aws:info:displayServiceInfo': async () => {
         await helper.setParameterStoreApiKey(serverless)

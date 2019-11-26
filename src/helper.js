@@ -112,7 +112,31 @@ const setParameterStoreApiKey = async (serverless) => {
     
 }
 
+const setApiGatewayDeploymentTimestamp = (serverless) => {
+  const ts = new Date().getTime()
+  const resources = serverless.service.provider.compiledCloudFormationTemplate["Resources"]
+  const isDeployment = (resource) => !!~resource.Type.search('AWS::ApiGateway::Deployment')
+  const setTimestamp = (timestamp) => {
+    return (resource, key) => {
+      resources[`${key}${timestamp}`] = resource
+      delete resources[key]
+      return resources[`${key}${timestamp}`]
+    }
+  }
+  const hasDeploymentReference = (resource) => resource.Properties.DeploymentId && resource.Properties.DeploymentId.Ref
+  const setTimestampDeploymentReference = (timestamp) => {
+    return (resource) => {
+      return resource.Properties.DeploymentId.Ref = `${resource.Properties.DeploymentId.Ref}${timestamp}`
+    }
+  }
+  const setDeployment = R.pipe(R.filter(isDeployment), R.mapObjIndexed(setTimestamp(ts)))
+  const setReference = R.pipe(R.filter(hasDeploymentReference), R.map(setTimestampDeploymentReference(ts)))
+  setDeployment(resources)
+  setReference(resources)
+}
+
 module.exports = {
   getApiKeyId,
-  setParameterStoreApiKey
+  setParameterStoreApiKey,
+  setApiGatewayDeploymentTimestamp
 }
