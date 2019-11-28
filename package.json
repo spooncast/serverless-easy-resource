@@ -1,6 +1,6 @@
 {
-  "name": "serverless-plugin-get-resource-id",
-  "version": "0.1.0",
+  "name": "serverless-easy-resource",
+  "version": "0.2.0",
   "description": "Helps generate UsagePlanKey using ApiKeyName.",
   "main": "src/index.js",
   "keywords": [
@@ -16,11 +16,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/spooncast/serverless-easy-usage-plan-key.git"
+    "url": "git+https://github.com/spooncast/serverless-easy-resource.git"
   },
   "author": "Aster",
   "license": "MIT",
-  "homepage": "https://github.com/spooncast/serverless-easy-usage-plan-key/blob/master/README.md",
+  "homepage": "https://github.com/spooncast/serverless-easy-resource/blob/master/README.md",
   "devDependencies": {},
   "dependencies": {
     "aws-sdk": "^2.564.0",
@@ -28,6 +28,6 @@
     "ramda": "^0.26.1"
   },
   "bugs": {
-    "url": "https://github.com/spooncast/serverless-easy-usage-plan-key/issues"
+    "url": "https://github.com/spooncast/serverless-easy-resource/issues"
   }
 }

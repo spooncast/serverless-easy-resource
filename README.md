@@ -1,4 +1,4 @@
-# serverless-easy-usage-plan-key
+# serverless-easy-resource
 
 main function
 - You can get the ID of an AWS :: ApiGateway resource by name or other key.
@@ -6,14 +6,14 @@ main function
 
 ## Installation
 ```bash
-$ npm i serverless-easy-usage-plan-key --save
+$ npm i serverless-easy-resource
 ```
 
 add the plugin to serverless.yml
 ```yaml
 # serverless.yml
 plugins:
-  - serverless-easy-usage-plan-key
+  - serverless-easy-resource
 ```
 
 ## Configuration

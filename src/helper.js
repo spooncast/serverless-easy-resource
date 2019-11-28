@@ -34,7 +34,7 @@ const getResourceByName = async (apiGateway, name, { type, nameKey, options={} }
 * @returns {Object} Apigateway resource.
  */
 const getResource = async (serverless, { type, nameKey='name', options={} } ) => {
-  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
+  const cliLog = (msg) => serverless.cli.consoleLog(`EasyResource: ${msg}`)
   const resourceName = serverless.service.custom &&
                      serverless.service.custom.apiGateway &&
                      serverless.service.custom.apiGateway[type] &&
@@ -58,7 +58,7 @@ const getResource = async (serverless, { type, nameKey='name', options={} } ) =>
  */
 const setResourceId = async (serverless, { type, nameKey='name', options={} }, resource) => {
   if (!resource) return
-  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
+  const cliLog = (msg) => serverless.cli.consoleLog(`EasyResource: ${msg}`)
   const template = serverless.service.provider.compiledCloudFormationTemplate.Resources
   const search = new RegExp(`Variable.apiGateway.${type}.id`, 'g')
   const replace = R.curry((_search, replaceTo, string) => string.replace(_search, replaceTo))
