@@ -1,10 +1,10 @@
 # serverless-easy-usage-plan-key
 
-If you already have an api key when you use the cloudformation resource to create an api usage plan,
-you can create a usage plan key with the api key name and associate it with the api usage plan.
+main function
+- You can get the ID of an AWS :: ApiGateway resource by name or other key.
+- If you have an AWS :: ApiGateway :: deploy resource, add a timestamp to the logical ID value so you can deploy RestApi per serverless deployments.
 
-## Install
-install package
+## Installation
 ```bash
 $ npm i serverless-easy-usage-plan-key --save
 ```
@@ -12,19 +12,52 @@ $ npm i serverless-easy-usage-plan-key --save
 add the plugin to serverless.yml
 ```yaml
 # serverless.yml
-
 plugins:
   - serverless-easy-usage-plan-key
 ```
 
-## Setup
+## Configuration
+
+### Get Resource Id by Key
+For each id value in the resource file:
+- Variable.apiGateway.{ResourceType}.id
+
+Supported resource items:
+- 'AWS::ApiGateway::RestApi'
+- 'AWS::ApiGateway::ApiKey'
+- 'AWS::ApiGateway::Resource'
+
 ```yaml
-UsagePlanKey:
+Resources:
+  #Api Key Id
+  ApiGatewayUsagePlanKey:
     Type: AWS::ApiGateway::UsagePlanKey
+    DependsOn:
+      - ApiGatewayUsagePlan
     Properties:
-        KeyName: my-api-key-name
-        KeyType: API_KEY
+      KeyId: Variable.apiGateway.ApiKey.id
+      KeyType: API_KEY
+      UsagePlanId: !Ref ApiGatewayUsagePlan
+  #Rest Api and Root Resource Id
+  ApiGatewayResourceOne:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: Variable.apiGateway.Resource.id
+      PathPart: One
+      RestApiId: Variable.apiGateway.RestApi.id
 ```
-If you have a resource of type AWS::ApiGateway::UsagePlanKey in Resources in the Serverless template,
-look for {resourceName}.Properties.KeyName to look up the API key information.
-If API key exists, get the API key id and put the value in {resourceName}.Properties.KeyId.
+
+```yaml
+# custom.apiGateway.(ApiKey / RestApi / Resource).name
+custom:
+  apiGateway:
+    RestApi:
+      name: apiGatewayName
+    ApiKey:
+      name: apiKeyName
+    Resource:
+      name: / #Root Resource
+```
+
+### Add Timestamp to Deployment
+Adding a timestamp to 'AWS::ApiGateway::Deployment' is automatically applied if you have a Deployment resource

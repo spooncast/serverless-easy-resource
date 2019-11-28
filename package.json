@@ -1,6 +1,6 @@
 {
-  "name": "serverless-easy-usage-plan-key",
-  "version": "0.0.24",
+  "name": "serverless-plugin-get-resource-id",
+  "version": "0.1.0",
   "description": "Helps generate UsagePlanKey using ApiKeyName.",
   "main": "src/index.js",
   "keywords": [
@@ -9,15 +9,14 @@
     "api gateway",
     "lambda",
     "aws lambda",
-    "usage plan",
-    "usage plan key"
+    "resourceId"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/spooncast/serverless-easy-usage-plan-key.git"
+    "url": "git+https://github.com/spooncast/serverless-easy-usage-plan-key.git"
   },
   "author": "Aster",
   "license": "MIT",
@@ -25,8 +24,10 @@
   "devDependencies": {},
   "dependencies": {
     "aws-sdk": "^2.564.0",
-    "bluebird": "^3.7.1",
     "chalk": "^2.4.2",
     "ramda": "^0.26.1"
+  },
+  "bugs": {
+    "url": "https://github.com/spooncast/serverless-easy-usage-plan-key/issues"
   }
 }

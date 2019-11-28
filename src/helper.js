@@ -1,120 +1,116 @@
 const AWS = require('aws-sdk')
 const chalk = require('chalk')
 const R = require('ramda')
-const BbPromise = require('bluebird')
 
 /**
- * Get api key by name.
- * @param {string} key Api Key name.
- * @param {Object} apigateway AWS apigateway object
- * @param {Object} cli Serverless CLI object
- * @returns {Object} Api key info.
+ * Get AWS Apigateway Resource by name.
+ * @param {Object} apiGateway AWS Apigateway object.
+ * @param {string} name rest Api name.
+ * @param {Object} search search options.
+ * @returns {Object} Apigateway resource.
  */
-const getApiKey = async (name, apigateway, cli) => {
+const getResourceByName = async (apiGateway, name, { type, nameKey, options={} }) => {
   try {
-    const getAllApiKeys = async (position = null, keys = []) => {
-      const options = position ? { position } : null
-      const res = await apigateway.getApiKeys(options).promise()
+    const getAllResource = async (position = null, keys = []) => {
+      if (position) options.position = position 
+      const res = await apiGateway[`get${type}s`](options).promise()
       keys = keys.concat(res.items)
-      return res.position ? getAllApiKeys(res.position, keys) : Promise.resolve(keys)
+      return res.position ? getAllResource(res.position, keys) : Promise.resolve(keys)
     }
-    const findApiKey = (_name) => (keys) => keys.find(k => k.name === _name)
-    const getApiKey = (_name) => R.pipeP(getAllApiKeys, findApiKey(_name))()
-
-    return getApiKey(name)
+    const findByName = (_name) => (keys) => keys.find(k => k[nameKey] === _name)
+    const findResource = (_name) => R.pipeP(getAllResource, findByName(_name))()
+    return findResource(name)
 
   } catch (error) {
     if (error.code === 'NotFoundException') return undefined
-    cli.consoleLog(`EasyUsagePlanKey: ${chalk.red(`Failed to check if key already exists. Error ${error.message || error}`)}`)
     throw error
   }
 }
 
 /**
- * Main function that gets api key id by name.
+ * Get AWS Apigateway Resource by name.
+ * @param {Object} serverless Serverless object.
+ * @param {Object} search search options.
+* @returns {Object} Apigateway resource.
+ */
+const getResource = async (serverless, { type, nameKey='name', options={} } ) => {
+  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
+  const resourceName = serverless.service.custom &&
+                     serverless.service.custom.apiGateway &&
+                     serverless.service.custom.apiGateway[type] &&
+                     serverless.service.custom.apiGateway[type].name
+  if (!resourceName) return
+  cliLog(chalk.yellow(`Find id using the name(${resourceName})...`))
+
+  const provider = serverless.getProvider('aws')
+  const awsCredentials = provider.getCredentials()
+  const region = provider.getRegion()
+  const apiGateway = new AWS.APIGateway({ credentials: awsCredentials.credentials, region })
+  const resource = await getResourceByName(apiGateway, resourceName, { type, nameKey, options })
+  return resource
+}
+
+/**
+ * Get AWS Apigateway Resource by name.
+ * @param {Object} serverless Serverless object.
+ * @param {Object} search search options.
+ * @param {Object} resource found resource object.
+ */
+const setResourceId = async (serverless, { type, nameKey='name', options={} }, resource) => {
+  if (!resource) return
+  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
+  const template = serverless.service.provider.compiledCloudFormationTemplate.Resources
+  const search = new RegExp(`Variable.apiGateway.${type}.id`, 'g')
+  const replace = R.curry((_search, replaceTo, string) => string.replace(_search, replaceTo))
+  const replaceTemplate = replace(search)(resource.id)
+  const getUpdatedTemplate = R.pipe(JSON.stringify, replaceTemplate, JSON.parse)
+  serverless.service.provider.compiledCloudFormationTemplate.Resources = getUpdatedTemplate(template)
+
+  if (resource) {
+    cliLog(chalk.yellow(`Found [${type}] resource successfully. name(${resource[nameKey]}) id(${resource.id})`))
+  } else {
+    cliLog(chalk.red(`Not found [${type}] resource. name(${resource[nameKey]})`))
+  }
+  return resource
+}
+
+/**
+ * function that gets rest api id by name.
  * @param {Object} serverless Serverless object
  */
-const getApiKeyId = async (serverless) => {
-
-  const resources = serverless.service.provider.compiledCloudFormationTemplate["Resources"]
-  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
-  const isUsagePlanKey = (resource) => !!~resource.Type.search('AWS::ApiGateway::UsagePlanKey')
-  const findApiKey = async (usagePlanKey) => {
-    const apiKeyName = usagePlanKey.Properties ? usagePlanKey.Properties.KeyName : null
-
-    if (!apiKeyName) return
-    
-    cliLog(chalk.yellow(`find API key id using the API key name...`))
-    const provider = serverless.getProvider('aws')
-    const awsCredentials = provider.getCredentials()
-    const region = provider.getRegion()
-    const apiGateway = new AWS.APIGateway({ credentials: awsCredentials.credentials, region })
-    const apiKey = await getApiKey(apiKeyName, apiGateway, serverless.cli)
-
-    if (apiKey) {
-      usagePlanKey.Properties.KeyId = apiKey.id
-      const provider = serverless.service.provider
-      if (!provider.apiKeys) provider.apiKeys = []
-      provider.apiKeys.push(apiKey.name)
-      cliLog(chalk.yellow(`API key id found successfully. KeyName(${apiKeyName}) apiKeyId(${apiKey.id})`))
-    } else {
-      cliLog(chalk.red(`API key not found.`))
-    }
-    delete usagePlanKey.Properties.KeyName
-
-    return usagePlanKey
-  }
-  
-  const run = R.pipe(R.filter(isUsagePlanKey), R.map(findApiKey), BbPromise.props)
-  await run(resources)
+const updateRestApiAndRootResourceId = async (serverless) => {
+  const searchApiKeyId = { type: 'RestApi' }
+  const getRestApiId = R.curry(getResource)(serverless)
+  const setRestApiId = R.curry(setResourceId)(serverless)(searchApiKeyId)
+  const runUpdateRestApiId = R.pipeP(getRestApiId, setRestApiId)
+  const { id:restApiId } = await runUpdateRestApiId(searchApiKeyId)
+  if (!restApiId) return
+  const searchRootResourceKeyId = { type: 'Resource', nameKey: 'path', options: { restApiId } }
+  const getApiResourceId = R.curry(getResource)(serverless)
+  const setApiResourceId  = R.curry(setResourceId)(serverless)(searchRootResourceKeyId)
+  const runUpdateApiResource = R.pipeP(getApiResourceId, setApiResourceId)
+  await runUpdateApiResource(searchRootResourceKeyId)
 }
 
-const setParameterStoreApiKey = async (serverless) => {
-
-  if (!serverless.service.custom.apiKeyParameter) return
-  const cliLog = (msg) => serverless.cli.consoleLog(`EasyUsagePlanKey: ${msg}`)
-
-  try {
-    const provider = serverless.getProvider('aws')
-    const awsCredentials = provider.getCredentials()
-    const region = provider.getRegion()
-    const ssm = new AWS.SSM({ credentials: awsCredentials.credentials, region })
-    const parameters = serverless.service.custom.apiKeyParameter
-
-    const putParameter = async (parameter) => {
-      const awsInfo = serverless.pluginManager.plugins.find(p => p.constructor.name === 'AwsInfo')
-      const apiGateway = new AWS.APIGateway({ credentials: awsCredentials.credentials, region })
-      const apiKey = await getApiKey(parameter.apiName, apiGateway, serverless.cli)
-
-      const apiKeyWithValue = await provider.request(
-          'APIGateway',
-          'getApiKey',
-          { apiKey: apiKey.id, includeValue: true })
-
-      const params = {
-        Name: parameter.keyName,
-        Type: "String",
-        Value: apiKeyWithValue.value,
-        Overwrite: true,
-        Tier: 'Standard'
-      }
-
-      const result = await ssm.putParameter(params).promise()
-      if (result) cliLog(`API key put parameter: ${parameter.keyName}`)
-      
-      return result
-    }
-    const run = R.pipe(R.map(putParameter), BbPromise.props)
-    await run(parameters)
-  } catch (e) {
-    cliLog(chalk.red(e))
-  }
-    
+/**
+ * function that gets api key id by name.
+ * @param {Object} serverless Serverless object
+ */
+const updateApiKeyId = async (serverless) => {
+  const search = { type: 'ApiKey' }
+  const getApiKeyId = R.curry(getResource)(serverless)
+  const setApiKeyId = R.curry(setResourceId)(serverless)(search)
+  const run = R.pipeP(getApiKeyId, setApiKeyId)
+  await run(search)
 }
 
+/**
+ * function that sets timestamp of ApiGateway deployment.
+ * @param {Object} serverless Serverless object
+ */
 const setApiGatewayDeploymentTimestamp = (serverless) => {
   const ts = new Date().getTime()
-  const resources = serverless.service.provider.compiledCloudFormationTemplate["Resources"]
+  const resources = serverless.service.provider.compiledCloudFormationTemplate['Resources']
   const isDeployment = (resource) => !!~resource.Type.search('AWS::ApiGateway::Deployment')
   const setTimestamp = (timestamp) => {
     return (resource, key) => {
@@ -136,7 +132,7 @@ const setApiGatewayDeploymentTimestamp = (serverless) => {
 }
 
 module.exports = {
-  getApiKeyId,
-  setParameterStoreApiKey,
+  updateApiKeyId,
+  updateRestApiAndRootResourceId,
   setApiGatewayDeploymentTimestamp
 }
