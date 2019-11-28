@@ -1,6 +1,6 @@
 {
   "name": "serverless-easy-resource",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Helps generate UsagePlanKey using ApiKeyName.",
   "main": "src/index.js",
   "keywords": [
@@ -19,7 +19,7 @@
     "url": "git+https://github.com/spooncast/serverless-easy-resource.git"
   },
   "author": "Aster",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/spooncast/serverless-easy-resource/blob/master/README.md",
   "devDependencies": {},
   "dependencies": {
